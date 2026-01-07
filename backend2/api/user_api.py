@@ -4,21 +4,32 @@ from models import db, User
 user_bp = Blueprint("user", __name__)
 
 
+# api/user_api.py（create_user 里替换为下面逻辑）
 @user_bp.route("/", methods=["POST"])
 def create_user():
-    data = request.get_json()
+    data = request.get_json() or {}
 
-    if not data:
-        return jsonify({"msg": "JSON body required"}), 400
+    username = data.get("username")
+    password = data.get("password")
+    email = data.get("email")
 
-    if "username" not in data:
-        return jsonify({"msg": "username is required"}), 400
+    if not username or not password:
+        return jsonify({"msg": "username and password are required"}), 400
 
-    user = User(username=data["username"])
+    # 防重复（username/email）
+    if User.query.filter_by(username=username).first():
+        return jsonify({"msg": "username already exists"}), 400
+    if email and User.query.filter_by(email=email).first():
+        return jsonify({"msg": "email already exists"}), 400
+
+    user = User(username=username, email=email, role="user", status="active")
+    user.set_password(password)
+
     db.session.add(user)
     db.session.commit()
 
     return jsonify(user.to_dict()), 201
+
 
 
 @user_bp.route("/", methods=["GET"])
